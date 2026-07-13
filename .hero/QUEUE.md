@@ -6,14 +6,7 @@
 
 # Hero Ready Queue
 
-_Generated: 2026-07-13T16:24:34Z · 7 ready specs_
-
-## modernize-morpheus-worker-chart — Modernize the morpheus-worker Helm Chart
-_initiative · planning · horizon: now_
-
-_(no `## Kickoff` section — run `/design` or hand-edit /home/morphuser/helm-charts-morpheus/.hero/planning/initiatives/modernize-morpheus-worker-chart/spec.md)_
-
----
+_Generated: 2026-07-13T16:33:27Z · 6 ready specs_
 
 ## controller-neutral-ingress-clean-break-2-0-0 — Controller-neutral Ingress + worker.protocol + clean break at chart 2.0.0
 _decision · accepted · horizon: now_
