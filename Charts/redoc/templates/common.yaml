@@ -1,50 +1,29 @@
+{{/* redoc 2.0.0 fail-fast guards: reject 1.x-era values with a migration message. */}}
+{{- if hasKey .Values "redoc" }}
+{{- fail "redoc 2.0.0: the `redoc.*` values block was removed (it was never delivered to the container). Set environment variables under `env:` instead, e.g. `env.SPEC_URL` (see values.yaml)." }}
+{{- end }}
+{{- if hasKey .Values "replicaCount" }}
+{{- fail "redoc 2.0.0: `replicaCount` was removed (it was never consumed). Use `controller.replicas` (common chart convention)." }}
+{{- end }}
+{{- if (.Values.metrics | default dict).enabled }}
+{{- fail "redoc 2.0.0: the metrics/exportarr stack was removed — exportarr does not support redoc and the redoc container exposes no metrics endpoint. Remove the `metrics:` (and `persistence.config`) values." }}
+{{- end }}
+{{- if .Values.ingress.main.path }}
+{{- fail "redoc 2.0.0: `ingress.main.path` was removed. Define paths per host under `ingress.main.hosts[].paths[]` with `path` and `pathType` (see values.yaml)." }}
+{{- end }}
+{{- if hasKey (.Values.ingress.main.annotations | default dict) "kubernetes.io/ingress.class" }}
+{{- fail "redoc 2.0.0: the `kubernetes.io/ingress.class` annotation was removed. Set `ingress.main.ingressClassName` instead." }}
+{{- end }}
+{{- if .Values.ingress.main.enabled }}
+{{- range .Values.ingress.main.hosts }}
+{{- if not .paths }}
+{{- fail (printf "redoc 2.0.0: ingress host %q has no `paths`. The 1.x host-only shape was removed; define `ingress.main.hosts[].paths[]` with `path` and `pathType` (see values.yaml)." (default "<unset>" .host)) }}
+{{- end }}
+{{- end }}
+{{- end }}
+
 {{/* Make sure all variables are set properly */}}
 {{- include "common.values.setup" . }}
-
-{{/* Append the hardcoded settings */}}
-{{- define "redoc.harcodedValues" -}}
-{{ if .Values.metrics.enabled }}
-additionalContainers:
-  exporter:
-    name: exporter
-    image: "{{ .Values.metrics.exporter.image.repository }}:{{ .Values.metrics.exporter.image.tag }}"
-    imagePullPolicy: {{ .Values.metrics.exporter.image.pullPolicy }}
-    args: ["redoc"]
-    env:
-      - name: URL
-        value: "http://localhost"
-      - name: CONFIG
-        value: "/config/config.xml"
-      - name: PORT
-        value: "{{ .Values.metrics.exporter.env.port }}"
-      - name: ENABLE_ADDITIONAL_METRICS
-        value: "{{ .Values.metrics.exporter.env.additionalMetrics }}"
-      - name: ENABLE_UNKNOWN_QUEUE_ITEMS
-        value: "{{ .Values.metrics.exporter.env.unknownQueueItems }}"
-    ports:
-      - name: metrics
-        containerPort: {{ .Values.metrics.exporter.env.port }}
-    volumeMounts:
-      {{ if .Values.persistence.config.enabled }}
-      - name: config
-        mountPath: /config
-        readOnly: true
-        {{ if .Values.persistence.config.subPath }}
-        subPath: {{ .Values.persistence.config.subPath }}
-        {{ end }}
-      {{ end }}
-
-service:
-  metrics:
-    enabled: true
-    ports:
-      metrics:
-        enabled: true
-        protocol: TCP
-        port: {{ .Values.metrics.exporter.env.port }}
-{{ end }}
-{{- end -}}
-{{- $_ := mergeOverwrite .Values (include "redoc.harcodedValues" . | fromYaml) -}}
 
 {{/* Render the templates */}}
 {{ include "common.all" . }}

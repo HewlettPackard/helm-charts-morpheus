@@ -1,123 +1,75 @@
-# Default values for Redoc.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
-replicaCount: 1
-
-redoc:
-  PAGE_TITLE: ""
-  PAGE_FAVICON: ""
-  SPEC_URL: "https://petstore.swagger.io/v2/swagger.json"
-  SPEC_FILE: ""
-  PORT: 80
-  REDOC_OPTIONS: ""
+# Default values for redoc.
+#
+# This chart wraps the k8s-at-home common library chart (4.5.2) — any
+# common-chart value (controller.replicas, podAnnotations, additional
+# services/ingresses, etc.) may be set here as well.
+# https://github.com/k8s-at-home/library-charts
 
 image:
   # -- image repository
   repository: redocly/redoc
-  # @default -- chart.appVersion
-  tag: v2.0.0-rc.74
+  # -- image tag (https://hub.docker.com/r/redocly/redoc/tags)
+  tag: v2.5.3
   # -- image pull policy
   pullPolicy: IfNotPresent
 
-# -- environment variables.
-# @default -- See below
+# -- environment variables passed to the redoc container.
+# See https://github.com/Redocly/redoc — the container renders the
+# OpenAPI document referenced by SPEC_URL.
 env:
-
-podAnnotations: {}
+  SPEC_URL: "https://petstore.swagger.io/v2/swagger.json"
+  # PAGE_TITLE: "My API docs"
+  # PAGE_FAVICON: "https://example.com/favicon.ico"
+  # REDOC_OPTIONS: "hide-download-button"
 
 # -- Configures service settings for the chart.
-# @default -- See values.yaml
 service:
   main:
     ports:
       http:
         port: 8008
+        # redoc's nginx listens on 80 inside the container
+        targetPort: 80
 
 ingress:
   main:
     # -- Enable and configure ingress settings for the chart under this key.
-    # @default -- See values.yaml
     enabled: false
-    annotations: 
-      kubernetes.io/ingress.class: nginx
-      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-      nginx.ingress.kubernetes.io/enable-cors: "true"
-      nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS"
-      nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-      nginx.ingress.kubernetes.io/configuration-snippet: |
-        more_set_headers "Access-Control-Allow-Origin: $http_origin";
+    # -- Ingress controller class (spec.ingressClassName).
+    ingressClassName:  # "nginx"
+    # -- No controller-specific annotations ship by default. Example for
+    # kubernetes/ingress-nginx (CORS for serving docs to browser apps):
+    annotations: {}
+    #   nginx.ingress.kubernetes.io/enable-cors: "true"
+    #   nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS"
+    #   nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
     hosts:
       - host: chart-example.local
-    path: /
+        paths:
+          - path: /
+            pathType: Prefix
     tls: []
     #  - secretName: chart-example-tls
     #    hosts:
     #      - chart-example.local
 
-# -- Configures the probes for the main Pod.
-# @default -- See values.yaml
-probes:
-  liveness:
-    enabled: true
-    ## Set this to true if you wish to specify your own livenessProbe
-    custom: true
-    ## The spec field contains the values for the default livenessProbe.
-    ## If you selected custom: true, this field holds the definition of the livenessProbe.
-    spec:
-      httpGet:
-        path: /
-        port: 80
-      failureThreshold: 5
-      initialDelaySeconds: 60
-      periodSeconds: 10
-      successThreshold: 1
-      timeoutSeconds: 10
-
-# -- Configure persistence settings for the chart under this key.
-## Config persistence is required for the Prometheus exporter sidecar.
-# @default -- See values.yaml
-persistence:
-  config:
-    enabled: false
-
-metrics:
-  # -- Enable and configure Exportarr sidecar and Prometheus serviceMonitor.
-  # @default -- See values.yaml
+httpRoute:
+  # Expose redoc via Gateway API (HTTPRoute) instead of, or alongside,
+  # classic Ingress. Requires the Gateway API CRDs (standard channel) and
+  # an existing Gateway; this chart does NOT create a Gateway. Set
+  # parentRefs to reference yours.
   enabled: false
-  serviceMonitor:
-    interval: 3m
-    scrapeTimeout: 1m
-    labels: {}
-  # -- Enable and configure Prometheus Rules for the chart under this key.
-  # @default -- See values.yaml
-  prometheusRule:
-    enabled: false
-    labels: {}
-    # -- Configure additionial rules for the chart under this key.
-    # @default -- See prometheusrules.yaml
-    rules: []
-      # - alert: SonarrDown
-      #   annotations:
-      #     description: Sonarr service is down.
-      #     summary: Sonarr is down.
-      #   expr: |
-      #     sonarr_system_status == 0
-      #   for: 5m
-      #   labels:
-      #     severity: critical
-  exporter:
-    image:
-      # -- image repository
-      repository: ghcr.io/onedr0p/exportarr
-      # -- image tag
-      tag: v1.3.1
-      # -- image pull policy
-      pullPolicy: IfNotPresent
-    env:
-      # -- metrics port
-      port: 9808
-      # -- Set to true to enable gathering of additional metrics (slow)
-      additionalMetrics: false
-      # -- Set to true to enable gathering unknown queue items
-      unknownQueueItems: false
+  annotations: {}
+  parentRefs: []
+  #  - name: my-gateway
+  #    namespace: my-gateway-namespace
+  #    sectionName: http
+  hostnames:
+    - chart-example.local
+  # Each rule's matches/filters render verbatim; backendRefs are
+  # chart-owned (always the redoc Service on service.main.ports.http.port).
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /

@@ -1,9 +1,9 @@
 apiVersion: v2
 name: redoc
-description: Deploy Redoc contain as Helm (https://github.com/Redocly/redoc)
-version: 1.2.0
-appVersion: 2.0.0-rc.74
-kubeVersion: ">=1.16.0-0"
+description: Deploy Redoc as a Helm chart (https://github.com/Redocly/redoc)
+version: 2.0.0
+appVersion: 2.5.3
+kubeVersion: ">=1.23.0-0"
 icon: https://raw.githubusercontent.com/Redocly/redoc/master/docs/images/redoc.png
 keywords:
   - redoc
@@ -21,5 +21,15 @@ dependencies:
     version: 4.5.2
 annotations:
   artifacthub.io/changes: |
+    - kind: fixed
+      description: Container/Service/probe ports aligned (targetPort 80); default install becomes ready
+    - kind: fixed
+      description: Environment variables are now delivered to the container via env (redoc.* block removed)
+    - kind: fixed
+      description: Ingress values reshaped to hosts[].paths[]; enabling ingress no longer crashes rendering
     - kind: added
-      description: Initial version
+      description: Gateway API HTTPRoute support (httpRoute.*)
+    - kind: removed
+      description: Non-functional exportarr metrics stack (ServiceMonitor, PrometheusRule, exporter sidecar)
+    - kind: changed
+      description: Image v2.0.0-rc.74 -> v2.5.3; kubeVersion floor 1.23; chart 2.0.0 (breaking)
