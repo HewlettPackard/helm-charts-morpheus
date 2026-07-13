@@ -112,6 +112,45 @@ entries:
     version: 1.2.0
   redoc:
   - annotations:
+      artifacthub.io/changes: |
+        - kind: fixed
+          description: Container/Service/probe ports aligned (targetPort 80); default install becomes ready
+        - kind: fixed
+          description: Environment variables are now delivered to the container via env (redoc.* block removed)
+        - kind: fixed
+          description: Ingress values reshaped to hosts[].paths[]; enabling ingress no longer crashes rendering
+        - kind: added
+          description: Gateway API HTTPRoute support (httpRoute.*)
+        - kind: removed
+          description: Non-functional exportarr metrics stack (ServiceMonitor, PrometheusRule, exporter sidecar)
+        - kind: changed
+          description: Image v2.0.0-rc.74 -> v2.5.3; kubeVersion floor 1.23; chart 2.0.0 (breaking)
+    apiVersion: v2
+    appVersion: 2.5.3
+    created: "2026-07-13T13:30:14.800432382-04:00"
+    dependencies:
+    - name: common
+      repository: https://library-charts.k8s-at-home.com
+      version: 4.5.2
+    description: Deploy Redoc as a Helm chart (https://github.com/Redocly/redoc)
+    digest: 160e7c4f54b9df8e776c2ef4f75820a1df3f355f0ad72e71d76e952cb3aec957
+    icon: https://raw.githubusercontent.com/Redocly/redoc/master/docs/images/redoc.png
+    keywords:
+    - redoc
+    - openapi
+    - swagger
+    - swaggerhub
+    - redocly
+    - api
+    kubeVersion: '>=1.23.0-0'
+    maintainers:
+    - email: Chris@CodetheThings.com
+      name: BungeBash
+    name: redoc
+    urls:
+    - https://github.com/HewlettPackard/helm-charts-morpheus/releases/download/redoc-2.0.0/redoc-2.0.0.tgz
+    version: 2.0.0
+  - annotations:
       artifacthub.io/changes: |-
         - kind: added
           description: Initial version
@@ -158,4 +197,4 @@ entries:
     urls:
     - https://github.com/gomorpheus/helm-charts-morpheus/releases/download/redoc-1.0.0/redoc-1.0.0.tgz
     version: 1.0.0
-generated: "2026-07-13T12:35:10.873023633-04:00"
+generated: "2026-07-13T13:30:14.790157298-04:00"
