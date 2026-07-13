@@ -1,32 +1,41 @@
 # Morpheus Worker
-The Morpheus Worker can serve as a VDI Gateway <and/or> a Distributed Worker.  Input the required tokens, and update the pointers within the Morpheus UI to be utilized as desired.
 
-## Deploying Morpheus Worker Nodes ##
+Deploys [HPE Morpheus](https://www.morpheusdata.com) worker nodes that can serve as a **VDI Gateway** and/or a **Distributed Worker**. Supply the required API keys, then update the corresponding pointers in the Morpheus UI.
 
-**Configure Helm Repo**
-```console
-helm repo add morpheusdata https://gomorpheus.github.io/helm-charts-morpheus/
-```
-\
-**Install Morpheus Worker**
-Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,
+## Prerequisites
+
+- Kubernetes 1.23+
+- Helm 3
+- Only when enabling `httpRoute`: the [Gateway API](https://gateway-api.sigs.k8s.io/) standard-channel CRDs and an existing `Gateway`
+
+## Installing
 
 ```console
-helm install morpheus-worker --set replicaCount="1" morpheusdata/morpheus-worker
-```
-Or supply a Values YAML file and pass as an agrgument as follows:
-```console
-helm install -f Values.yaml morpheus-worker morpheusdata/morpheus-worker
+helm repo add morpheusdata https://hewlettpackard.github.io/helm-charts-morpheus/
+helm repo update
 ```
 
----
-## Upgrading Morpheus Worker Nodes ##
+Install with parameters set on the command line:
 
-There are no persistent items associated with Worker Nodes at this time.  Upgrading is simpling refreshing the repo and performing the following:
+```console
+helm install morpheus-worker morpheusdata/morpheus-worker \
+  --set env.MORPHEUS_URL="https://morpheus.example.com" \
+  --set env.MORPHEUS_WORKER_KEY="<key>"
+```
+
+Or supply a values file:
+
+```console
+helm install -f values.yaml morpheus-worker morpheusdata/morpheus-worker
+```
+
+## Upgrading
+
+Worker nodes hold no persistent state; upgrading is a repo refresh plus:
 
 ```console
 helm repo update
-helm upgrade -f Values.yaml morpheus-worker morpheusdata/morpheus-worker
+helm upgrade -f values.yaml morpheus-worker morpheusdata/morpheus-worker
 ```
 
 ## Upgrading to 2.0.0 (breaking changes)
@@ -84,9 +93,28 @@ ingress:
 
 **Probe target.** Liveness/readiness probes now target the container port (`service.ports.targetPort`) instead of the Service port. With default values (both 8080) there is no behavior change; if you had diverged the two values, the probe now targets the correct port.
 
-## Gateway API (HTTPRoute)
+## Exposing the worker
 
-The chart can expose the worker via the [Gateway API](https://gateway-api.sigs.k8s.io/) instead of, or alongside, classic Ingress. `ingress.enabled` and `httpRoute.enabled` are independent toggles — run both during an Ingress→Gateway migration.
+The chart supports classic Ingress and Gateway API as independent toggles — enable either, or both during a migration.
+
+### Classic Ingress
+
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: morpheus-worker.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+No controller-specific annotations ship by default; see the commented examples in `values.yaml` (reproduced in the 2.0.0 section above).
+
+### Gateway API (HTTPRoute)
+
+The chart can expose the worker via the [Gateway API](https://gateway-api.sigs.k8s.io/) instead of, or alongside, classic Ingress.
 
 **Prerequisites:** the Gateway API standard-channel CRDs must be installed in the cluster, and a `Gateway` must already exist — this chart does not create one. `httpRoute.parentRefs` must reference it; rendering fails with an explicit error otherwise.
 
@@ -107,52 +135,60 @@ Each entry in `httpRoute.rules[]` renders its `matches` and `filters` verbatim; 
 - *Cookie session affinity* (`nginx.ingress.kubernetes.io/affinity` and friends) has no portable Gateway API equivalent — session persistence (`BackendLBPolicy`) is still experimental. Configure it per-implementation on your Gateway if you need it.
 - *Backend TLS* (when `worker.protocol=https`): controller annotations like `backend-protocol: HTTPS` do not apply to HTTPRoute. Gateway API models this as a separate user-supplied [`BackendTLSPolicy`](https://gateway-api.sigs.k8s.io/api-types/backendtlspolicy/) resource, which this chart does not ship; some implementations offer their own alternatives.
 
-## Uninstalling Morpheus Worker Chart
+## Uninstalling
 
-To uninstall/delete deployment:
 ```console
 helm uninstall morpheus-worker
 ```
-or
-```console
-helm delete morpheus-worker --purge
-```
 
-The command removes all the Kubernetes components associated with the chart and deletes the release.
+This removes all Kubernetes components associated with the chart and deletes the release.
 
 ## Configuration
 
-The following tables lists the configurable parameters of the Sentry chart and their default Values.
+The following table lists the configurable parameters of the morpheus-worker chart and their default values.
 
-| Parameter                                   | Description                                                                                  | Default                                        |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `image.repository`                            | Image repository                                  | `morpheusdata/morpheus-worker`|
-| `image.tag`                                   | Image tag. Possible Values listed [here](https://hub.docker.com/r/morpheusdata/morpheus-worker/tags). | `5.4.3`|
-| `image.pullPolicy`                            | Image pull policy | `IfNotPresent`                |                           |
-| `env.MORPHEUS_KEY`                            | API Key for Morpheus VDI Gateway                                      |  `<Optional>`             |
-| `env.MORPHEUS_WORKER_KEY`                     | API Key for Morpheus Distributed Worker                                |  `<Optional>`             |
-| `env.MORPHEUS_URL`                            | Morpheus FQDN with protocol                       |                           |
-| `env.MORPHEUS_SELF_SIGNED`                    | Is Morpheus using a Self Signed Certificate       | `false`                   |
-| `service.type`                                | Kubernetes service type for the GUI               | `NodePort`               |
-| `service.port`                                | Kubernetes port where the GUI is exposed          | `8989`                    |
-| `livenessProbe.initialDelaySeconds`           | Initial delay (seconds) for liveness monitoring   | `5`                       |
-| `livenessProbe.timeoutSeconds`                | Timeout (seconds) before health check considered unhealthy | `5`              |
-| `livenessProbe.periodSeconds`                 | Poll interval (seconds) between health checks     | `10`                      |
-| `livenessProbe.failureThreshold`              | Number of failed polls before restarting service  | `3`                       |
-| `replicaCount`                                | Number of Replicas if AutoScaling False           | `1`                       |
-| `autoscaling.enabled`                         | Enable AutoScaling                                | `false`                   |
-| `autoscaling.minReplicas`                     | Minimum number of Replicas                        | `1`                       |
-| `autoscaling.maxReplicas`                     | Maximum number of Replicas                        | `100`                     |
-| `autoscaling.targetCPUUtilizationPercentage`  | CPU Threshold for AutoScaling                     | `80`                      |
-| `autoscaling.targetMemoryUtilizationPercentage`| Memory Threshold for AutoScaling                 | `80`                      |
-| `ingress.enabled`                             | Enables Ingress                                   | `false`                   |
-| `ingress.annotations`                         | Ingress annotations                               | `{}`                      |
-| `ingress.path`                                | Ingress path                                      | `/`                       |
-| `ingress.hosts`                               | Ingress accepted hostnames                        | `chart-example.local`     |
-| `ingress.tls`                                 | Ingress TLS configuration                         | `[]`                      |
-| `resources`                                   | CPU/Memory resource requests/limits               | `{}`                      |
-| `nodeSelector`                                | Node labels for pod assignment                    | `{}`                      |
-| `tolerations`                                 | Toleration labels for pod assignment              | `[]`                      |
-| `affinity`                                    | Affinity settings for pod assignment              | `{}`                      |
-
----
+| Parameter | Description | Default |
+| --------- | ----------- | ------- |
+| `replicaCount` | Number of replicas when autoscaling is disabled | `1` |
+| `env.MORPHEUS_KEY` | API key for the Morpheus VDI Gateway (optional) | `""` |
+| `env.MORPHEUS_WORKER_KEY` | API key for the Morpheus Distributed Worker (optional) | `""` |
+| `env.MORPHEUS_URL` | Morpheus FQDN, including protocol | `""` |
+| `env.MORPHEUS_SELF_SIGNED` | Whether Morpheus uses a self-signed certificate | `"false"` |
+| `image.repository` | Image repository | `morpheusdata/morpheus-worker` |
+| `image.tag` | Image tag ([available tags](https://hub.docker.com/r/morpheusdata/morpheus-worker/tags)); defaults to the chart `appVersion` when empty | `""` |
+| `image.pullPolicy` | Image pull policy | `IfNotPresent` |
+| `nameOverride` | Override the chart name | `""` |
+| `fullnameOverride` | Override the fully qualified release name | `""` |
+| `podAnnotations` | Annotations added to worker pods | `{}` |
+| `worker.protocol` | Protocol the worker listens on (`http` or `https`); drives the probe scheme | `http` |
+| `service.type` | Kubernetes Service type | `NodePort` |
+| `service.ports.port` | Service port | `8080` |
+| `service.ports.targetPort` | Container port the worker listens on | `8080` |
+| `service.ports.nodePort` | Fixed NodePort (only honored when `service.type` is `NodePort`) | unset |
+| `livenessProbe.initialDelaySeconds` | Liveness probe initial delay (seconds) | `5` |
+| `livenessProbe.timeoutSeconds` | Liveness probe timeout (seconds) | `5` |
+| `livenessProbe.periodSeconds` | Liveness probe poll interval (seconds) | `10` |
+| `livenessProbe.failureThreshold` | Failed liveness polls before restart | `3` |
+| `readinessProbe.initialDelaySeconds` | Readiness probe initial delay (seconds) | `5` |
+| `readinessProbe.timeoutSeconds` | Readiness probe timeout (seconds) | `5` |
+| `readinessProbe.periodSeconds` | Readiness probe poll interval (seconds) | `10` |
+| `readinessProbe.failureThreshold` | Failed readiness polls before unready | `3` |
+| `ingress.enabled` | Enable classic Ingress | `false` |
+| `ingress.className` | Ingress controller class (`spec.ingressClassName`) | `""` |
+| `ingress.annotations` | Ingress annotations (controller-specific examples in `values.yaml`) | `{}` |
+| `ingress.hosts` | Hosts, each with `host` and `paths[].{path,pathType}` | `[{host: chart-example.local, paths: [{path: /, pathType: Prefix}]}]` |
+| `ingress.tls` | Ingress TLS configuration | `[]` |
+| `httpRoute.enabled` | Enable Gateway API HTTPRoute | `false` |
+| `httpRoute.annotations` | HTTPRoute annotations | `{}` |
+| `httpRoute.parentRefs` | References to an existing Gateway (required when enabled) | `[]` |
+| `httpRoute.hostnames` | HTTPRoute hostnames | `[chart-example.local]` |
+| `httpRoute.rules` | Rules (`matches`/`filters` pass through; `backendRefs` are chart-owned) | one `PathPrefix /` match |
+| `resources` | CPU/memory requests and limits | memory: `512Mi` request, `2Gi` limit |
+| `autoscaling.enabled` | Enable the HorizontalPodAutoscaler | `false` |
+| `autoscaling.minReplicas` | Minimum replicas | `1` |
+| `autoscaling.maxReplicas` | Maximum replicas | `100` |
+| `autoscaling.targetCPUUtilizationPercentage` | CPU threshold for autoscaling | `80` |
+| `autoscaling.targetMemoryUtilizationPercentage` | Memory threshold for autoscaling | `80` |
+| `nodeSelector` | Node labels for pod assignment | `{}` |
+| `tolerations` | Tolerations for pod assignment | `[]` |
+| `affinity` | Affinity rules for pod assignment | `{}` |

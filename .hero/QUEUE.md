@@ -6,7 +6,7 @@
 
 # Hero Ready Queue
 
-_Generated: 2026-07-13T16:20:02Z · 7 ready specs_
+_Generated: 2026-07-13T16:24:34Z · 7 ready specs_
 
 ## modernize-morpheus-worker-chart — Modernize the morpheus-worker Helm Chart
 _initiative · planning · horizon: now_
