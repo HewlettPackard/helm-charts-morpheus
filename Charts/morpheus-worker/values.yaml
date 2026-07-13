@@ -12,7 +12,9 @@ env:
 
 image:
   repository: morpheusdata/morpheus-worker
-  tag: 5.4.3
+  # Defaults to the chart appVersion when empty. Available tags:
+  # https://hub.docker.com/r/morpheusdata/morpheus-worker/tags
+  tag: ""
   pullPolicy: IfNotPresent
 
 nameOverride: ""

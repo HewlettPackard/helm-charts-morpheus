@@ -1,9 +1,9 @@
 apiVersion: v2
 name: morpheus-worker
 description: Deploy Morpheus VDI and Distributed Workers (https://www.morpheusdata.com)
-version: 1.4.1
-appVersion: 5.4.3
-kubeVersion: ">=1.16.0-0"
+version: 2.0.0
+appVersion: 8.0.5
+kubeVersion: ">=1.23.0-0"
 icon: https://morpheusdata.com/wp-content/uploads/2020/04/morpheus-logo-v2.svg
 keywords:
   - morpheus
