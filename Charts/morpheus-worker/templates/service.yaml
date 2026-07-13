@@ -4,35 +4,15 @@ metadata:
   name: {{ include "morpheus-worker.fullname" . }}
   labels:
     {{- include "morpheus-worker.labels" . | nindent 4 }}
-    app.kubernetes.io/name: {{ include "morpheus-worker.name" . }}
-    helm.sh/chart: {{ include "morpheus-worker.chart" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   type: {{ .Values.service.type }}
-  {{- if eq .Values.service.type "NodePort" }}
   ports:
-    - port: {{ .Values.service.ports.port }}
+    - name: worker
+      protocol: TCP
+      port: {{ .Values.service.ports.port }}
       targetPort: {{ .Values.service.ports.targetPort }}
-      {{- if .Values.service.ports.nodePort}}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.ports.nodePort }}
       nodePort: {{ .Values.service.ports.nodePort }}
-      {{- end}}
-  {{- end}}
-  {{- if eq .Values.service.type "LoadBalancer"}}
-  clusterIP: {{ .Values.service.clusterIP }}
-  ports:
-    - protocol: {{ .Values.service.ports.protocol }}
-      port: {{ .Values.service.ports.port }}
-      targetPort: {{ .Values.service.ports.targetPort }}
-  {{- end}}
-  {{- if eq .Values.service.type "ClusterIP"}}
-  {{- if .Values.service.clusterIP}}
-  clusterIP: {{ .Values.service.clusterIP }}
-  {{- end}}
-  ports:
-    - protocol: {{ .Values.service.ports.protocol }}
-      port: {{ .Values.service.ports.port }}
-      targetPort: {{ .Values.service.ports.targetPort }}
-  {{- end}}
+      {{- end }}
   selector:
     {{- include "morpheus-worker.selectorLabels" . | nindent 4 }}

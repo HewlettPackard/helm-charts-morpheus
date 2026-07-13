@@ -4,10 +4,6 @@ metadata:
   name: {{ include "morpheus-worker.fullname" . }}
   labels:
     {{- include "morpheus-worker.labels" . | nindent 4 }}
-    app.kubernetes.io/name: {{ include "morpheus-worker.name" . }}
-    helm.sh/chart: {{ include "morpheus-worker.chart" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -32,6 +28,10 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: worker
+              containerPort: {{ .Values.service.ports.targetPort }}
+              protocol: TCP
           env:
           - name: MORPHEUS_KEY
             value: {{ .Values.env.MORPHEUS_KEY | quote }}
@@ -44,11 +44,21 @@ spec:
           livenessProbe:
             httpGet:
               path: /ping
-              port: {{ .Values.service.ports.port }}
+              port: worker
+              scheme: {{ .Values.worker.protocol | upper }}
             initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
             periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
             failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: worker
+              scheme: {{ .Values.worker.protocol | upper }}
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

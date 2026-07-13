@@ -20,11 +20,22 @@ fullnameOverride: ""
 
 podAnnotations: {}
 
+worker:
+  # Protocol the worker process listens on: http or https.
+  # Drives the liveness/readiness probe scheme and which ingress
+  # annotation examples apply. The listen port is configurable at the
+  # app level; conventional ports are 8080 (http) and 8443 (https).
+  # For HTTPS: set protocol: https, service.ports.targetPort: 8443,
+  # and add your controller's backend-protocol annotation (see
+  # ingress.annotations examples below).
+  protocol: http
+
 service:
   type: NodePort
-  ports: 
+  ports:
     port: 8080
     targetPort: 8080
+    # nodePort: 30080   # optional; honored only when type is NodePort
 
 livenessProbe:
   initialDelaySeconds: 5
@@ -32,18 +43,42 @@ livenessProbe:
   periodSeconds: 10
   failureThreshold: 3
 
+readinessProbe:
+  initialDelaySeconds: 5
+  timeoutSeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
 ingress:
   enabled: false
-  annotations: 
-    kubernetes.io/ingress.class: nginx
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    nginx.ingress.kubernetes.io/forwarded-for-header: "X-Forwarded-For"
-    nginx.ingress.kubernetes.io/x-forwarded-proto: "https"
-    nginx.ingress.kubernetes.io/affinity: "cookie"
-    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+  # Ingress controller class (spec.ingressClassName). Replaces the
+  # deprecated kubernetes.io/ingress.class annotation.
+  className: ""
+  # No controller-specific annotations are shipped by default.
+  # Uncomment the set matching YOUR controller. <fullname> below means
+  # the rendered Service name (default: <release>-morpheus-worker).
+  annotations: {}
+  ## kubernetes/ingress-nginx (ingressClassName: nginx):
+  # annotations:
+  #   nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"   # only when worker.protocol=https
+  #   nginx.ingress.kubernetes.io/forwarded-for-header: "X-Forwarded-For"
+  #   nginx.ingress.kubernetes.io/x-forwarded-proto: "https"
+  #   nginx.ingress.kubernetes.io/affinity: "cookie"
+  #   nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+  #   nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"  # long-lived websocket sessions
+  #   nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  ## NGINX Inc. kubernetes-ingress (ingressClassName: nginx):
+  # annotations:
+  #   nginx.org/websocket-services: "<fullname>"              # MUST be the full Service name
+  #   nginx.com/sticky-cookie-services: "serviceName=<fullname> srv_id expires=1h path=/"
+  #   nginx.org/proxy-read-timeout: "3600"
+  #   nginx.org/proxy-send-timeout: "3600"
+  #   nginx.org/ssl-services: "<fullname>"                    # only when worker.protocol=https
   hosts:
     - host: chart-example.local
-  path: /
+      paths:
+        - path: /
+          pathType: Prefix
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:

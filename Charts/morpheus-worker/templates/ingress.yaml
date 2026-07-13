@@ -1,26 +1,32 @@
 {{- if .Values.ingress.enabled -}}
-{{- $fullName := include "morpheus-worker.fullname" . -}}
-{{- $svcPort := .Values.service.ports.targetPort -}}
-{{- if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
-apiVersion: networking.k8s.io/v1
-{{- else -}}
-apiVersion: extensions/v1
+{{- /* 2.0.0 fail-fast guard: reject 1.x-era ingress values with a migration message. */ -}}
+{{- if .Values.ingress.path }}
+{{- fail "morpheus-worker 2.0.0: `ingress.path` was removed. Define paths per host under `ingress.hosts[].paths[]` with `path` and `pathType` (see values.yaml)." }}
 {{- end }}
+{{- if hasKey (default (dict) .Values.ingress.annotations) "kubernetes.io/ingress.class" }}
+{{- fail "morpheus-worker 2.0.0: the `kubernetes.io/ingress.class` annotation was removed. Set `ingress.className` instead." }}
+{{- end }}
+{{- range .Values.ingress.hosts }}
+{{- if not .paths }}
+{{- fail (printf "morpheus-worker 2.0.0: ingress host %q has no `paths`. The 1.x host-only shape was removed; define `ingress.hosts[].paths[]` with `path` and `pathType` (see values.yaml)." (default "<unset>" .host)) }}
+{{- end }}
+{{- end }}
+{{- $fullName := include "morpheus-worker.fullname" . -}}
+{{- $svcPort := .Values.service.ports.port -}}
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ $fullName }}
   labels:
     {{- include "morpheus-worker.labels" . | nindent 4 }}
-    app.kubernetes.io/name: {{ include "morpheus-worker.name" . }}
-    helm.sh/chart: {{ include "morpheus-worker.chart" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-    nginx.org/websocket-services: {{ include "morpheus-worker.name" . }}
 spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
     {{- range .Values.ingress.tls }}
@@ -36,12 +42,14 @@ spec:
     - host: {{ .host | quote }}
       http:
         paths:
-          - path: /
-            pathType: Prefix
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
             backend:
               service:
                 name: {{ $fullName }}
                 port:
                   number: {{ $svcPort }}
+          {{- end }}
     {{- end }}
-  {{- end }}
+{{- end }}

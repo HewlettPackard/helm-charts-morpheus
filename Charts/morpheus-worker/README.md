@@ -29,6 +29,61 @@ helm repo update
 helm upgrade -f Values.yaml morpheus-worker morpheusdata/morpheus-worker
 ```
 
+## Upgrading to 2.0.0 (breaking changes)
+
+Chart 2.0.0 reworks the ingress values schema and requires Kubernetes 1.23+. Rendering fails with an explicit error message when 1.x-era keys are supplied. To stay on the old schema, pin chart `1.4.1` (`helm upgrade --version 1.4.1 ...`).
+
+**Ingress values schema.** `ingress.path` and host-only `ingress.hosts[]` entries were removed in favor of the standard per-host paths shape, and the deprecated `kubernetes.io/ingress.class` annotation was replaced by `ingress.className`:
+
+```yaml
+# 1.x shape (rejected by 2.0.0)
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: morpheus-worker.example.com
+  path: /
+
+# 2.0.0 shape
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: morpheus-worker.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+**Controller-neutral defaults.** `ingress.annotations` now defaults to `{}` — the chart no longer ships nginx-specific annotations, and the hardcoded `nginx.org/websocket-services` annotation (which pointed at a nonexistent Service name) is no longer rendered by the template. Copy the commented example matching your controller from `values.yaml`, replacing `<fullname>` with the rendered Service name (default: `<release>-morpheus-worker`):
+
+```yaml
+# kubernetes/ingress-nginx
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"   # only when worker.protocol=https
+    nginx.ingress.kubernetes.io/forwarded-for-header: "X-Forwarded-For"
+    nginx.ingress.kubernetes.io/x-forwarded-proto: "https"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"  # long-lived websocket sessions
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+
+# NGINX Inc. kubernetes-ingress
+ingress:
+  annotations:
+    nginx.org/websocket-services: "<fullname>"              # MUST be the full Service name
+    nginx.com/sticky-cookie-services: "serviceName=<fullname> srv_id expires=1h path=/"
+    nginx.org/proxy-read-timeout: "3600"
+    nginx.org/proxy-send-timeout: "3600"
+    nginx.org/ssl-services: "<fullname>"                    # only when worker.protocol=https
+```
+
+**Worker protocol.** A new `worker.protocol` value (default `http`, port 8080) drives the liveness/readiness probe scheme. HTTPS deployments set `worker.protocol=https`, `service.ports.targetPort=8443`, and the backend-protocol (or `nginx.org/ssl-services`) annotation for their controller.
+
+**Probe target.** Liveness/readiness probes now target the container port (`service.ports.targetPort`) instead of the Service port. With default values (both 8080) there is no behavior change; if you had diverged the two values, the probe now targets the correct port.
+
 ## Uninstalling Morpheus Worker Chart
 
 To uninstall/delete deployment:

@@ -49,14 +49,3 @@ Selector labels
 app.kubernetes.io/name: {{ include "morpheus-worker.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
-
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "morpheus-worker.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "morpheus-worker.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
-{{- end }}
