@@ -84,6 +84,27 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
+httpRoute:
+  # Expose the worker via Gateway API (HTTPRoute) instead of, or alongside,
+  # classic Ingress. Requires the Gateway API CRDs (standard channel) and an
+  # existing Gateway; this chart does NOT create a Gateway. Set parentRefs
+  # to reference yours.
+  enabled: false
+  annotations: {}
+  parentRefs: []
+  #  - name: my-gateway
+  #    namespace: my-gateway-namespace
+  #    sectionName: http
+  hostnames:
+    - chart-example.local
+  # Each rule's matches/filters render verbatim; backendRefs are chart-owned
+  # (always the worker Service on service.ports.port).
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+
 resources:
   limits:
     memory: "2Gi"

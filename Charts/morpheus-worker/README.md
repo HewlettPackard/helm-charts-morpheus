@@ -84,6 +84,29 @@ ingress:
 
 **Probe target.** Liveness/readiness probes now target the container port (`service.ports.targetPort`) instead of the Service port. With default values (both 8080) there is no behavior change; if you had diverged the two values, the probe now targets the correct port.
 
+## Gateway API (HTTPRoute)
+
+The chart can expose the worker via the [Gateway API](https://gateway-api.sigs.k8s.io/) instead of, or alongside, classic Ingress. `ingress.enabled` and `httpRoute.enabled` are independent toggles — run both during an Ingress→Gateway migration.
+
+**Prerequisites:** the Gateway API standard-channel CRDs must be installed in the cluster, and a `Gateway` must already exist — this chart does not create one. `httpRoute.parentRefs` must reference it; rendering fails with an explicit error otherwise.
+
+```yaml
+httpRoute:
+  enabled: true
+  parentRefs:
+    - name: my-gateway
+      namespace: my-gateway-namespace
+      sectionName: http
+  hostnames:
+    - morpheus-worker.example.com
+```
+
+Each entry in `httpRoute.rules[]` renders its `matches` and `filters` verbatim; the `backendRefs` are always chart-owned and target the worker Service on `service.ports.port`.
+
+**Behaviors that do not port from the Ingress annotations:**
+- *Cookie session affinity* (`nginx.ingress.kubernetes.io/affinity` and friends) has no portable Gateway API equivalent — session persistence (`BackendLBPolicy`) is still experimental. Configure it per-implementation on your Gateway if you need it.
+- *Backend TLS* (when `worker.protocol=https`): controller annotations like `backend-protocol: HTTPS` do not apply to HTTPRoute. Gateway API models this as a separate user-supplied [`BackendTLSPolicy`](https://gateway-api.sigs.k8s.io/api-types/backendtlspolicy/) resource, which this chart does not ship; some implementations offer their own alternatives.
+
 ## Uninstalling Morpheus Worker Chart
 
 To uninstall/delete deployment:

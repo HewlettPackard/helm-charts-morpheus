@@ -20,3 +20,15 @@
   echo "Visit {{ .Values.worker.protocol }}://127.0.0.1:{{ .Values.service.ports.port }} to use your application"
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME {{ .Values.service.ports.port }}:$CONTAINER_PORT
 {{- end }}
+{{- if .Values.httpRoute.enabled }}
+{{- $path := "/" }}
+{{- with (first .Values.httpRoute.rules) }}{{- with (first .matches) }}{{- with .path }}{{- $path = default "/" .value }}{{- end }}{{- end }}{{- end }}
+
+2. Gateway API HTTPRoute is enabled. URLs (scheme depends on your Gateway listener):
+{{- range .Values.httpRoute.hostnames }}
+  http://{{ . }}{{ $path }}
+{{- end }}
+  The route attaches to the Gateway referenced in httpRoute.parentRefs — the Gateway
+  and its listeners are managed by you, not this chart. Find its address with:
+  kubectl get gateway {{ (first .Values.httpRoute.parentRefs).name }}{{ with (first .Values.httpRoute.parentRefs).namespace }} --namespace {{ . }}{{ end }}
+{{- end }}
